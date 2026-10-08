@@ -249,43 +249,49 @@ async def websocket_endpoint(websocket: WebSocket):
             action = data.get("action")
             room_code = data.get("roomCode")
             
-            if action == "CREATE_ROOM":
-                current_room = room_code
-                is_host = True
-                if current_room not in rooms:
-                    rooms[current_room] = {"host": websocket, "clients": set()}
-                else:
-                    rooms[current_room]["host"] = websocket
-                
-            elif action == "JOIN_ROOM":
-                current_room = room_code
-                is_host = False
-                if current_room in rooms:
-                    rooms[current_room]["clients"].add(websocket)
-                    host_ws = rooms[current_room]["host"]
-                    if host_ws:
-                        await host_ws.send_json(data.get("data", {}))
-                else:
-                    await websocket.send_json({"type": "ERROR", "message": "Sala no encontrada"})
+            try:
+                if action == "CREATE_ROOM":
+                    current_room = room_code
+                    is_host = True
+                    if current_room not in rooms:
+                        rooms[current_room] = {"host": websocket, "clients": set()}
+                    else:
+                        rooms[current_room]["host"] = websocket
                     
-            elif action == "BROADCAST":
-                if current_room in rooms:
-                    payload = data.get("data", {})
-                    for client in list(rooms[current_room]["clients"]):
-                        try:
-                            await client.send_json(payload)
-                        except:
-                            rooms[current_room]["clients"].remove(client)
-                            
-            elif action == "SEND_TO_HOST":
-                if current_room in rooms:
-                    host_ws = rooms[current_room]["host"]
-                    if host_ws:
+                elif action == "JOIN_ROOM":
+                    current_room = room_code
+                    is_host = False
+                    if current_room in rooms:
+                        rooms[current_room]["clients"].add(websocket)
+                        host_ws = rooms[current_room]["host"]
+                        if host_ws:
+                            await host_ws.send_json(data.get("data", {}))
+                    else:
+                        await websocket.send_json({"type": "ERROR", "message": f"Sala {current_room} no encontrada en memoria."})
+                        
+                elif action == "BROADCAST":
+                    if current_room in rooms:
                         payload = data.get("data", {})
-                        try:
-                            await host_ws.send_json(payload)
-                        except:
-                            pass
+                        for client in list(rooms[current_room]["clients"]):
+                            try:
+                                await client.send_json(payload)
+                            except:
+                                rooms[current_room]["clients"].remove(client)
+                                
+                elif action == "SEND_TO_HOST":
+                    if current_room in rooms:
+                        host_ws = rooms[current_room]["host"]
+                        if host_ws:
+                            payload = data.get("data", {})
+                            try:
+                                await host_ws.send_json(payload)
+                            except:
+                                pass
+            except Exception as e:
+                import traceback
+                error_msg = traceback.format_exc()
+                print("WS ERROR:", error_msg)
+                await websocket.send_json({"type": "ERROR", "message": str(e)})
 
     except WebSocketDisconnect:
         if current_room in rooms:

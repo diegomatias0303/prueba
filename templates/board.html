@@ -751,6 +751,7 @@
             else if (data.type === 'GAME_OVER') triggerWinModal(data.winnerName);
             else if (data.type === 'START_ATRAPADAS') startLocalAtrapadas(data);
             else if (data.type === 'UPDATE_ATRAPADAS') updateAtrapadasState(data);
+            else if (data.type === 'ERROR') { showToast('Error: ' + data.message, '❌'); console.error('WS Error:', data.message); }
         }
 
         function renderLobbyPlayers() {
