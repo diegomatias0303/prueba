@@ -121,7 +121,7 @@ async def root(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_get(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html", context={"request": request})
 
 @app.post("/login", response_class=HTMLResponse)
 async def login_post(request: Request, usuario_o_email: str = Form(...), password: str = Form(...)):
@@ -136,16 +136,16 @@ async def login_post(request: Request, usuario_o_email: str = Form(...), passwor
         response.set_cookie(key="nombreJugador", value=user["nombre"])
         return response
     else:
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Credenciales incorrectas.", "input": usuario_o_email})
+        return templates.TemplateResponse(request=request, name="login.html", context={"request": request, "error": "Credenciales incorrectas.", "input": usuario_o_email})
 
 @app.get("/register", response_class=HTMLResponse)
 async def register_get(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="register.html", context={"request": request})
 
 @app.post("/register", response_class=HTMLResponse)
 async def register_post(request: Request, nombre: str = Form(...), usuario: str = Form(...), email: str = Form(...), password: str = Form(...), confirm_password: str = Form(...)):
     if password != confirm_password:
-        return templates.TemplateResponse("register.html", {"request": request, "error": "Las contraseñas no coinciden."})
+        return templates.TemplateResponse(request=request, name="register.html", context={"request": request, "error": "Las contraseñas no coinciden."})
     
     conn = get_db()
     try:
@@ -156,14 +156,14 @@ async def register_post(request: Request, nombre: str = Form(...), usuario: str 
         response.set_cookie(key="nombreJugador", value=nombre)
         return response
     except IntegrityError:
-        return templates.TemplateResponse("register.html", {"request": request, "error": "El usuario o email ya existe."})
+        return templates.TemplateResponse(request=request, name="register.html", context={"request": request, "error": "El usuario o email ya existe."})
     finally:
         conn.close()
 
 @app.get("/game", response_class=HTMLResponse)
 async def game(request: Request):
     nombreJugador = request.cookies.get("nombreJugador", "Jugador1")
-    return templates.TemplateResponse("board.html", {"request": request, "nombreJugador": nombreJugador})
+    return templates.TemplateResponse(request=request, name="board.html", context={"request": request, "nombreJugador": nombreJugador})
 
 @app.get("/api/perfil/{nombre_jugador}")
 async def get_perfil(nombre_jugador: str):
