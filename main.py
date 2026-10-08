@@ -54,11 +54,19 @@ def init_db():
             puntaje INTEGER DEFAULT 0
         )
     """)
+    conn.commit()
+
     if IS_POSTGRES:
-        try: execute_query(conn, "ALTER TABLE usuarios ADD COLUMN victorias INTEGER DEFAULT 0")
-        except: conn.rollback()
-        try: execute_query(conn, "ALTER TABLE usuarios ADD COLUMN puntaje INTEGER DEFAULT 0")
-        except: conn.rollback()
+        try: 
+            execute_query(conn, "ALTER TABLE usuarios ADD COLUMN victorias INTEGER DEFAULT 0")
+            conn.commit()
+        except: 
+            conn.rollback()
+        try: 
+            execute_query(conn, "ALTER TABLE usuarios ADD COLUMN puntaje INTEGER DEFAULT 0")
+            conn.commit()
+        except: 
+            conn.rollback()
     else:
         try: execute_query(conn, "ALTER TABLE usuarios ADD COLUMN victorias INTEGER DEFAULT 0")
         except: pass
@@ -75,6 +83,7 @@ def init_db():
             FOREIGN KEY(amigo_id) REFERENCES usuarios(id)
         )
     """)
+    conn.commit()
 
     # Insert defaults if empty
     c = execute_query(conn, "SELECT COUNT(*) FROM usuarios")
