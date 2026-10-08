@@ -1,0 +1,137 @@
+?<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Lotería Mexicana</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Montserrat:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mexPink: '#e11d48', mexYellow: '#facc15', mexGreen: '#15803d',
+                        mexGreenDark: '#166534', mexOrange: '#ea580c', mexBlue: '#0284c7',
+                        mexPurple: '#9333ea', mexPaper: '#fefce8', mexDark: '#1c1917',
+                        mexVintage: '#fff8e7'
+                    },
+                    fontFamily: {
+                        marker: ['"Permanent Marker"', 'cursive'],
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        sans: ['Montserrat', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #fef08a;
+            color: #1c1917;
+            background-image: radial-gradient(#ca8a04 1.5px, transparent 1.5px);
+            background-size: 28px 28px;
+        }
+        .mexican-border { border: 4px solid #1c1917; box-shadow: 6px 6px 0px #1c1917; }
+        .mexican-card-shadow { box-shadow: 4px 4px 0px #1c1917; }
+        .bandera { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 85% 90%, 70% 100%, 50% 90%, 30% 100%, 15% 90%, 0% 100%); }
+        @keyframes wave {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+        .animate-wave { animation: wave 2.5s infinite ease-in-out; transform-origin: top center; }
+    </style>
+</head>
+<body class="min-h-full flex flex-col font-sans selection:bg-mexPink selection:text-white relative justify-center items-center p-4 py-12">
+
+    <!-- Papel Picado Decorativo -->
+    <div class="fixed top-0 left-0 w-full flex justify-around pointer-events-none z-[60] overflow-visible h-12">
+        <div class="w-12 h-14 bg-[#15803d] bandera animate-wave shadow-lg" style="animation-delay: 0.1s;"></div>
+        <div class="w-12 h-14 bg-[#ffffff] bandera animate-wave shadow-lg" style="animation-delay: 0.3s;"></div>
+        <div class="w-12 h-14 bg-[#e11d48] bandera animate-wave shadow-lg" style="animation-delay: 0.5s;"></div>
+        <div class="w-12 h-14 bg-[#facc15] bandera animate-wave shadow-lg hidden sm:block" style="animation-delay: 0.2s;"></div>
+        <div class="w-12 h-14 bg-[#15803d] bandera animate-wave shadow-lg hidden sm:block" style="animation-delay: 0.4s;"></div>
+        <div class="w-12 h-14 bg-[#e11d48] bandera animate-wave shadow-lg" style="animation-delay: 0.6s;"></div>
+    </div>
+
+    <div class="w-full max-w-md bg-mexPaper mexican-border p-6 sm:p-8 rounded-2xl z-10 relative">
+        <!-- Encabezado -->
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 rounded-2xl bg-mexPink border-3 border-mexDark flex items-center justify-center text-3xl shadow-md mx-auto mb-3 transform rotate-3">
+                🇲🇽
+            </div>
+            <h1 class="font-marker text-3xl text-mexGreenDark tracking-wide drop-shadow-[1px_1px_0px_#000]">
+                Lotería Mexicana
+            </h1>
+            <p class="font-fredoka text-mexDark/80 text-sm mt-1">Inicia sesión para entrar a la jugada</p>
+        </div>
+
+        {% if mensaje %}
+            <div class="mb-5 p-3.5 rounded-xl bg-emerald-100 border-2 border-emerald-600 text-emerald-900 text-xs font-fredoka font-bold flex items-center gap-2 shadow-sm">
+                <span class="text-lg">✅</span>
+                <span>{{ mensaje }}</span>
+            </div>
+        {% endif %}
+
+        {% if error %}
+            <div class="mb-5 p-3.5 rounded-xl bg-red-100 border-2 border-red-600 text-red-800 text-xs font-fredoka font-bold flex items-center gap-2 shadow-sm">
+                <span class="text-lg">❌</span>
+                <span>{{ error }}</span>
+            </div>
+        {% endif %}
+
+        <!-- Formulario de Login -->
+        <form method="POST" action="/login" class="space-y-4">
+            <div>
+                <label class="block text-xs font-fredoka font-bold text-mexGreenDark uppercase tracking-wider mb-1">Usuario o Correo Electrónico</label>
+                <input type="text" name="usuario_o_email" value="{{ input }}" required placeholder="Ej: admin o diego" class="w-full px-4 py-3 rounded-xl bg-white border-2 border-mexDark text-mexDark font-fredoka text-sm focus:outline-none focus:ring-4 focus:ring-mexYellow shadow-inner">
+            </div>
+
+            <div>
+                <label class="block text-xs font-fredoka font-bold text-mexGreenDark uppercase tracking-wider mb-1">Contraseña</label>
+                <input type="password" name="password" required placeholder="Tu contraseña" class="w-full px-4 py-3 rounded-xl bg-white border-2 border-mexDark text-mexDark font-fredoka text-sm focus:outline-none focus:ring-4 focus:ring-mexYellow shadow-inner">
+            </div>
+
+            <button type="submit" class="w-full mt-4 py-3.5 px-4 rounded-xl bg-mexPink hover:bg-mexPink/90 text-white font-fredoka font-bold text-base mexican-card-shadow transition-transform hover:-translate-y-0.5 active:translate-y-0">
+                🎲 Entrar a Jugar
+            </button>
+        </form>
+
+        <!-- Usuarios de Prueba Rápidos -->
+        <div class="mt-6 bg-mexVintage border-2 border-dashed border-mexDark/40 rounded-xl p-3.5 text-xs font-fredoka">
+            <span class="font-bold text-mexDark block mb-1.5 text-center">💡 Cuentas de prueba en la BD SQL:</span>
+            <div class="flex justify-around text-center text-mexDark/80">
+                <button type="button" onclick="fillDemo('admin', 'admin123')" class="px-2 py-1 bg-white border border-mexDark rounded hover:bg-mexYellow transition">
+                    <strong>admin</strong> / admin123
+                </button>
+                <button type="button" onclick="fillDemo('diego', '123456')" class="px-2 py-1 bg-white border border-mexDark rounded hover:bg-mexYellow transition">
+                    <strong>diego</strong> / 123456
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t-2 border-mexDark/15 text-center font-fredoka text-sm space-y-2">
+            <div>
+                <span class="text-mexDark/70">¿No tienes cuenta todavía?</span>
+                <a href="/register" class="font-bold text-mexGreen hover:text-mexGreenDark underline decoration-2 ml-1">
+                    ¡Regístrate aquí! 🪅
+                </a>
+            </div>
+            <div>
+                <a href="setup.php" class="text-xs text-mexDark/60 hover:text-mexDark underline">
+                    🛠️ ¿BD no configurada? Asistente de BD
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function fillDemo(user, pass) {
+            document.querySelector('input[name="usuario_o_email"]').value = user;
+            document.querySelector('input[name="password"]').value = pass;
+        }
+    </script>
+</body>
+</html>

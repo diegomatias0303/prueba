@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+jinja2
+websockets
+python-multipart
+psycopg2-binary
+gunicorn
