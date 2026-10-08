@@ -248,6 +248,8 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_json()
             action = data.get("action")
             room_code = data.get("roomCode")
+            if room_code:
+                room_code = room_code.lower()
             
             try:
                 if action == "CREATE_ROOM":
