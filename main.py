@@ -3,13 +3,19 @@ import json
 import socket
 import sqlite3
 import os
+import os
+import traceback
 from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 app = FastAPI()
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return PlainTextResponse(str(exc) + "\n\n" + traceback.format_exc(), status_code=500)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
