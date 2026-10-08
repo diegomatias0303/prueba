@@ -2,6 +2,7 @@ import asyncio
 import json
 import socket
 import sqlite3
+import os
 from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -9,9 +10,9 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
 
-import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 IS_POSTGRES = DATABASE_URL and DATABASE_URL.startswith("postgres")
