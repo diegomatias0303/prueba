@@ -85,12 +85,25 @@ def init_db():
             id {auto_inc},
             usuario_id INTEGER,
             amigo_id INTEGER,
+            estado VARCHAR(20) DEFAULT 'pendiente',
+            es_mejor_amigo BOOLEAN DEFAULT 0,
             UNIQUE(usuario_id, amigo_id),
             FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
             FOREIGN KEY(amigo_id) REFERENCES usuarios(id)
         )
     """)
     conn.commit()
+    
+    if IS_POSTGRES:
+        try: execute_query(conn, "ALTER TABLE amigos ADD COLUMN estado VARCHAR(20) DEFAULT 'aceptado'")
+        except: pass
+        try: execute_query(conn, "ALTER TABLE amigos ADD COLUMN es_mejor_amigo BOOLEAN DEFAULT false")
+        except: pass
+    else:
+        try: execute_query(conn, "ALTER TABLE amigos ADD COLUMN estado VARCHAR(20) DEFAULT 'aceptado'")
+        except: pass
+        try: execute_query(conn, "ALTER TABLE amigos ADD COLUMN es_mejor_amigo BOOLEAN DEFAULT 0")
+        except: pass
 
     # Insert defaults if empty
     c = execute_query(conn, "SELECT COUNT(*) FROM usuarios")
@@ -204,12 +217,24 @@ async def get_perfil(nombre_jugador: str):
         conn.close()
         return JSONResponse({"error": "Usuario no encontrado"})
     
+    # Amigos aceptados (ya sea que yo lo envié o él me lo envió)
     c = execute_query(conn, """
-        SELECT u.nombre, u.usuario FROM amigos a
-        JOIN usuarios u ON a.amigo_id = u.id
-        WHERE a.usuario_id = ?
+        SELECT u.id, u.nombre, u.usuario, a.es_mejor_amigo 
+        FROM amigos a
+        JOIN usuarios u ON (a.amigo_id = u.id OR a.usuario_id = u.id)
+        WHERE (a.usuario_id = ? OR a.amigo_id = ?) 
+          AND u.id != ? AND a.estado = 'aceptado'
+    """, (user["id"], user["id"], user["id"]))
+    amigos = [{"id": row["id"], "nombre": row["nombre"], "usuario": row["usuario"], "es_mejor_amigo": bool(row["es_mejor_amigo"])} for row in c.fetchall()]
+    
+    # Solicitudes pendientes que ME enviaron a mí
+    c = execute_query(conn, """
+        SELECT u.id, u.nombre, u.usuario, a.id as relacion_id
+        FROM amigos a
+        JOIN usuarios u ON a.usuario_id = u.id
+        WHERE a.amigo_id = ? AND a.estado = 'pendiente'
     """, (user["id"],))
-    amigos = [{"nombre": row["nombre"], "usuario": row["usuario"]} for row in c.fetchall()]
+    solicitudes = [{"relacion_id": row["relacion_id"], "nombre": row["nombre"], "usuario": row["usuario"]} for row in c.fetchall()]
     conn.close()
     
     return JSONResponse({
@@ -218,15 +243,15 @@ async def get_perfil(nombre_jugador: str):
         "usuario": user["usuario"],
         "victorias": user["victorias"],
         "puntaje": user["puntaje"],
-        "amigos": amigos
+        "amigos": amigos,
+        "solicitudes": solicitudes
     })
 
 @app.post("/api/add_friend")
 async def add_friend(request: Request):
     token = request.cookies.get("auth_token")
     my_name = verify_token(token)
-    if not my_name:
-        return JSONResponse({"success": False, "msg": "No autorizado"}, status_code=401)
+    if not my_name: return JSONResponse({"success": False, "msg": "No autorizado"}, status_code=401)
     
     data = await request.json()
     friend_name = data.get("friend_name")
@@ -238,20 +263,66 @@ async def add_friend(request: Request):
     friend = c.fetchone()
     
     if me and friend and me["id"] != friend["id"]:
-        try:
-            execute_query(conn, "INSERT INTO amigos (usuario_id, amigo_id) VALUES (?, ?)", (me["id"], friend["id"]))
-            conn.commit()
-            success = True
-            msg = "Amigo agregado"
-        except IntegrityError:
-            conn.rollback()
+        # Check if relation already exists in either direction
+        c = execute_query(conn, "SELECT estado FROM amigos WHERE (usuario_id=? AND amigo_id=?) OR (usuario_id=? AND amigo_id=?)", 
+                          (me["id"], friend["id"], friend["id"], me["id"]))
+        existing = c.fetchone()
+        if existing:
+            msg = "Ya son amigos" if existing["estado"] == 'aceptado' else "Solicitud ya enviada o pendiente"
             success = False
-            msg = "Ya son amigos"
+        else:
+            try:
+                execute_query(conn, "INSERT INTO amigos (usuario_id, amigo_id, estado) VALUES (?, ?, 'pendiente')", (me["id"], friend["id"]))
+                conn.commit()
+                success = True
+                msg = "Solicitud enviada"
+            except IntegrityError:
+                conn.rollback()
+                success = False
+                msg = "Error al enviar solicitud"
     else:
         success = False
         msg = "Usuario inválido"
     conn.close()
     return JSONResponse({"success": success, "msg": msg})
+
+@app.post("/api/accept_friend")
+async def accept_friend(request: Request):
+    token = request.cookies.get("auth_token")
+    my_name = verify_token(token)
+    if not my_name: return JSONResponse({"success": False, "msg": "No autorizado"}, status_code=401)
+    
+    data = await request.json()
+    relacion_id = data.get("relacion_id")
+    
+    conn = get_db()
+    execute_query(conn, "UPDATE amigos SET estado = 'aceptado' WHERE id = ? AND amigo_id = (SELECT id FROM usuarios WHERE nombre = ?)", (relacion_id, my_name))
+    conn.commit()
+    conn.close()
+    return JSONResponse({"success": True, "msg": "Solicitud aceptada"})
+
+@app.post("/api/toggle_best_friend")
+async def toggle_best_friend(request: Request):
+    token = request.cookies.get("auth_token")
+    my_name = verify_token(token)
+    if not my_name: return JSONResponse({"success": False, "msg": "No autorizado"}, status_code=401)
+    
+    data = await request.json()
+    friend_id = data.get("friend_id")
+    
+    conn = get_db()
+    c = execute_query(conn, "SELECT id FROM usuarios WHERE nombre = ?", (my_name,))
+    me = c.fetchone()
+    if me:
+        # Toggle es_mejor_amigo (0 or 1, or boolean)
+        c = execute_query(conn, """
+            UPDATE amigos 
+            SET es_mejor_amigo = NOT es_mejor_amigo 
+            WHERE (usuario_id = ? AND amigo_id = ?) OR (usuario_id = ? AND amigo_id = ?)
+        """, (me["id"], friend_id, friend_id, me["id"]))
+        conn.commit()
+    conn.close()
+    return JSONResponse({"success": True})
 
 @app.post("/api/add_win")
 async def add_win(request: Request):
