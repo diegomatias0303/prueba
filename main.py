@@ -112,11 +112,37 @@ def get_db():
         return conn
 
 # ==========================================
+# AUTH & SECURITY
+# ==========================================
+import hmac
+import hashlib
+import base64
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "super-secret-key-for-loteria-12345")
+
+def create_token(nombre: str) -> str:
+    payload = base64.urlsafe_b64encode(nombre.encode()).decode()
+    signature = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{signature}"
+
+def verify_token(token: str) -> str:
+    if not token: return None
+    try:
+        parts = token.split(".")
+        if len(parts) != 2: return None
+        payload, signature = parts
+        expected_sig = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(signature, expected_sig):
+            return base64.urlsafe_b64decode(payload).decode()
+    except Exception:
+        pass
+    return None
+
+# ==========================================
 # ROUTES
 # ==========================================
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    # Simplest session: just rely on JS or redirect directly to login
     return RedirectResponse(url="/login")
 
 @app.get("/login", response_class=HTMLResponse)
@@ -131,8 +157,8 @@ async def login_post(request: Request, usuario_o_email: str = Form(...), passwor
     conn.close()
     
     if user:
-        # We will use a simple query parameter for session for this prototype, or cookies
         response = RedirectResponse(url="/game", status_code=302)
+        response.set_cookie(key="auth_token", value=create_token(user["nombre"]), httponly=True)
         response.set_cookie(key="nombreJugador", value=user["nombre"])
         return response
     else:
@@ -153,6 +179,7 @@ async def register_post(request: Request, nombre: str = Form(...), usuario: str 
         conn.commit()
         
         response = RedirectResponse(url="/game", status_code=302)
+        response.set_cookie(key="auth_token", value=create_token(nombre), httponly=True)
         response.set_cookie(key="nombreJugador", value=nombre)
         return response
     except IntegrityError:
@@ -162,7 +189,10 @@ async def register_post(request: Request, nombre: str = Form(...), usuario: str 
 
 @app.get("/game", response_class=HTMLResponse)
 async def game(request: Request):
-    nombreJugador = request.cookies.get("nombreJugador", "Jugador1")
+    token = request.cookies.get("auth_token")
+    nombreJugador = verify_token(token)
+    if not nombreJugador:
+        return RedirectResponse(url="/login")
     return templates.TemplateResponse(request=request, name="board.html", context={"request": request, "nombreJugador": nombreJugador})
 
 @app.get("/api/perfil/{nombre_jugador}")
@@ -193,8 +223,12 @@ async def get_perfil(nombre_jugador: str):
 
 @app.post("/api/add_friend")
 async def add_friend(request: Request):
+    token = request.cookies.get("auth_token")
+    my_name = verify_token(token)
+    if not my_name:
+        return JSONResponse({"success": False, "msg": "No autorizado"}, status_code=401)
+    
     data = await request.json()
-    my_name = data.get("my_name")
     friend_name = data.get("friend_name")
     
     conn = get_db()
@@ -221,9 +255,16 @@ async def add_friend(request: Request):
 
 @app.post("/api/add_win")
 async def add_win(request: Request):
+    token = request.cookies.get("auth_token")
+    nombre = verify_token(token)
+    if not nombre:
+        return JSONResponse({"success": False, "error": "No autorizado"}, status_code=401)
+
     data = await request.json()
-    nombre = data.get("nombre")
     puntos = data.get("puntos", 10)
+    # Anti-cheat cap
+    if puntos > 50: 
+        puntos = 10
     
     conn = get_db()
     execute_query(conn, "UPDATE usuarios SET victorias = victorias + 1, puntaje = puntaje + ? WHERE nombre = ?", (puntos, nombre))
