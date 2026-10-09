@@ -530,6 +530,7 @@
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
         
         function exitToMainMenu() {
+            state.roomCode = null;
             if (state.ws) { state.ws.close(); state.ws = null; }
             if (state.pingInterval) { clearInterval(state.pingInterval); state.pingInterval = null; }
             state.playersList = [];
@@ -701,7 +702,7 @@
                         broadcastToAll({ type: 'UPDATE_PLAYERS', players: state.playersList });
                     }
                 }
-                else if (payload.type === 'CLAIM_LOTERIA') verifyClientLoteria(payload.playerName);
+                else if (payload.type === 'CLAIM_LOTERIA') verifyClientLoteria(payload);
                 else if (payload.type === 'MOVE_ATRAPADAS') handleAtrapadasMove(payload, null);
             };
         }
@@ -744,6 +745,13 @@
             
             state.ws.onerror = () => {
                 showToast('Error de conexión. ¿Está corriendo server.py?', '❌');
+            };
+
+            state.ws.onclose = () => {
+                if (state.roomCode && !state.isHost) {
+                    showToast('Desconectado. Reconectando...', '⚠️');
+                    setTimeout(() => connectToHost(state.roomCode), 3000);
+                }
             };
         }
 
@@ -827,6 +835,12 @@
 
         function handleAtrapadasMove(data, conn) {
             if(state.a_players[data.id]) {
+                const prev = state.a_players[data.id];
+                const dist = Math.hypot(data.x - prev.x, data.y - prev.y);
+                if (dist > 50) {
+                    console.warn('Movimiento sospechoso detectado');
+                    return;
+                }
                 state.a_players[data.id].x = data.x;
                 state.a_players[data.id].y = data.y;
             }
@@ -1018,6 +1032,7 @@
         }
 
         function broadcastGameStart() {
+            state.bots = null;
             state.deck = shuffleArray([...LOTERIA_CARDS]); state.calledCards = [];
             broadcastToAll({ type: 'START_GAME', deck: state.deck }); startLocalLoteria();
         }
@@ -1025,6 +1040,13 @@
         function startSoloGame() {
             state.playerName = document.getElementById('inputPlayerName').value || 'Solo'; state.isHost = true;
             state.deck = shuffleArray([...LOTERIA_CARDS]); state.calledCards = [];
+            
+            state.bots = [
+                { name: 'Bot Pedro', board: shuffleArray([...LOTERIA_CARDS]).slice(0, 16), matched: 0 },
+                { name: 'Bot María', board: shuffleArray([...LOTERIA_CARDS]).slice(0, 16), matched: 0 },
+                { name: 'Bot Juan', board: shuffleArray([...LOTERIA_CARDS]).slice(0, 16), matched: 0 }
+            ];
+            
             startLocalLoteria();
         }
 
@@ -1039,7 +1061,25 @@
         function callNextCard() {
             const card = state.deck.pop(); state.calledCards.unshift(card);
             updateGameUIWithCard(card, state.deck.length); playSound('call');
+            if (state.audioEnabled) {
+                const u = new SpeechSynthesisUtterance("¡" + card.name + "!");
+                u.lang = 'es-MX';
+                speechSynthesis.speak(u);
+            }
             if(state.isHost) broadcastToAll({ type: 'NEXT_CARD', card: card, remaining: state.deck.length });
+
+            if (state.bots) {
+                for (let bot of state.bots) {
+                    if (bot.board.some(c => c.id === card.id)) {
+                        bot.matched++;
+                        if (bot.matched >= 16) {
+                            clearInterval(state.timerInterval);
+                            setTimeout(() => { triggerWinModal(bot.name); }, 1500);
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         function receiveCalledCard(card, remaining) {
@@ -1087,11 +1127,25 @@
             });
             if(won) {
                 if(state.isHost) { triggerWinModal(state.playerName); broadcastToAll({ type: 'GAME_OVER', winnerName: state.playerName }); }
-                else sendToHost({ type: 'CLAIM_LOTERIA', playerName: state.playerName });
+                else sendToHost({ type: 'CLAIM_LOTERIA', playerName: state.playerName, board: state.currentBoard, marked: state.markedCells });
             } else { showToast('¡Aún te faltan cartas!', '❌'); }
         }
 
-        function verifyClientLoteria(clientName) { triggerWinModal(clientName); broadcastToAll({ type: 'GAME_OVER', winnerName: clientName }); }
+        function verifyClientLoteria(payload) {
+            const { playerName, board, marked } = payload;
+            let isValid = true;
+            board.forEach((cardId, index) => {
+                if (!marked[index] || !state.calledCards.some(c => c.id === cardId)) {
+                    isValid = false;
+                }
+            });
+            if (isValid) {
+                triggerWinModal(playerName);
+                broadcastToAll({ type: 'GAME_OVER', winnerName: playerName });
+            } else {
+                console.warn(`Verificación fallida para ${playerName}`);
+            }
+        }
         
         function triggerWinModal(winnerName) {
             if(state.timerInterval) clearInterval(state.timerInterval); playSound('win');
