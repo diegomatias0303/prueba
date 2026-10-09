@@ -693,7 +693,13 @@
                 if (e.key === 'Enter') {
                     const text = e.target.value.trim();
                     if (text && state.roomCode) {
-                        broadcastToAll({ type: 'CHAT_MESSAGE', playerName: state.playerName, text: text });
+                        const payload = { type: 'CHAT_MESSAGE', playerName: state.playerName, text: text };
+                        if (state.isHost) {
+                            broadcastToAll(payload);
+                            handleChatMessage(payload);
+                        } else {
+                            sendToHost(payload);
+                        }
                         e.target.value = '';
                     }
                 }
