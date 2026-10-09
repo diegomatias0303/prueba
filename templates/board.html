@@ -531,6 +531,7 @@
         
         function exitToMainMenu() {
             if (state.ws) { state.ws.close(); state.ws = null; }
+            if (state.pingInterval) { clearInterval(state.pingInterval); state.pingInterval = null; }
             state.playersList = [];
             if(state.timerInterval) clearInterval(state.timerInterval);
             switchView('viewMainMenu');
@@ -666,6 +667,13 @@
             state.ws.onopen = () => {
                 state.ws.send(JSON.stringify({ action: 'CREATE_ROOM', roomCode: randomCode }));
                 
+                // Keepalive to prevent connection drop
+                state.pingInterval = setInterval(() => {
+                    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+                        state.ws.send(JSON.stringify({ action: 'PING' }));
+                    }
+                }, 20000);
+                
                 document.getElementById('roomCodeDisplay').textContent = randomCode;
                 document.getElementById('btnStartGame').classList.remove('hidden');
                 
@@ -703,6 +711,13 @@
             state.ws = new WebSocket(WS_URL);
             
             state.ws.onopen = () => {
+                // Keepalive to prevent connection drop
+                state.pingInterval = setInterval(() => {
+                    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+                        state.ws.send(JSON.stringify({ action: 'PING' }));
+                    }
+                }, 20000);
+
                 state.ws.send(JSON.stringify({ 
                     action: 'JOIN_ROOM', 
                     roomCode: hostId,

@@ -252,7 +252,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 room_code = room_code.lower()
             
             try:
-                if action == "CREATE_ROOM":
+                if action == "PING":
+                    try:
+                        await websocket.send_json({"type": "PONG"})
+                    except:
+                        pass
+                
+                elif action == "CREATE_ROOM":
                     current_room = room_code
                     is_host = True
                     if current_room not in rooms:
@@ -324,7 +330,7 @@ def get_local_ip():
 if __name__ == "__main__":
     local_ip = get_local_ip()
     print("="*60)
-    print("🚀 SERVIDOR DE LOTERÍA Y ATRAPADAS (FULL PYTHON) 🚀")
+    print(" SERVIDOR DE LOTERIA Y ATRAPADAS (FULL PYTHON) ")
     print("="*60)
     print(f"Para jugar, abre en tu navegador:")
     print(f"  En esta PC: http://localhost:8000")
