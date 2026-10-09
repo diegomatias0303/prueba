@@ -95,10 +95,16 @@ def init_db():
     conn.commit()
     
     if IS_POSTGRES:
-        try: execute_query(conn, "ALTER TABLE amigos ADD COLUMN estado VARCHAR(20) DEFAULT 'aceptado'")
-        except: pass
-        try: execute_query(conn, "ALTER TABLE amigos ADD COLUMN es_mejor_amigo BOOLEAN DEFAULT false")
-        except: pass
+        try: 
+            execute_query(conn, "ALTER TABLE amigos ADD COLUMN estado VARCHAR(20) DEFAULT 'aceptado'")
+            conn.commit()
+        except: 
+            conn.rollback()
+        try: 
+            execute_query(conn, "ALTER TABLE amigos ADD COLUMN es_mejor_amigo BOOLEAN DEFAULT false")
+            conn.commit()
+        except: 
+            conn.rollback()
     else:
         try: execute_query(conn, "ALTER TABLE amigos ADD COLUMN estado VARCHAR(20) DEFAULT 'aceptado'")
         except: pass
