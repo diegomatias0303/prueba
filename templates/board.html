@@ -454,9 +454,10 @@
     </div>
 
     <!-- Chat UI Overlay -->
-    <div id="chatOverlay" class="fixed bottom-4 left-4 w-72 h-64 bg-white/90 border-4 border-mexDark mexican-card-shadow rounded-xl flex flex-col hidden z-50">
-        <div class="bg-mexGreen text-white font-marker px-3 py-1 border-b-2 border-mexDark text-sm flex justify-between">
+    <div id="chatOverlay" class="fixed bottom-4 left-4 w-72 h-64 bg-white/90 border-4 border-mexDark mexican-card-shadow rounded-xl flex flex-col hidden z-50 transition-all duration-300">
+        <div class="bg-mexGreen text-white font-marker px-3 py-1 border-b-2 border-mexDark text-sm flex justify-between cursor-pointer select-none" onclick="toggleChat()">
             <span>💬 Chat</span>
+            <button id="btnToggleChat" class="text-white font-sans hover:text-mexYellow font-bold">_</button>
         </div>
         <ul id="chatMessages" class="flex-1 p-2 overflow-y-auto space-y-1 text-xs font-fredoka"></ul>
         <input type="text" id="chatInput" placeholder="Presiona Enter para enviar..." class="w-full px-2 py-2 border-t-2 border-mexDark text-sm font-fredoka focus:outline-none bg-white font-bold">
@@ -543,6 +544,23 @@
                 document.getElementById('chatOverlay').classList.remove('hidden');
             } else {
                 document.getElementById('chatOverlay').classList.add('hidden');
+            }
+        }
+
+        function toggleChat() {
+            const msgs = document.getElementById('chatMessages');
+            const input = document.getElementById('chatInput');
+            const overlay = document.getElementById('chatOverlay');
+            if (msgs.classList.contains('hidden')) {
+                msgs.classList.remove('hidden');
+                input.classList.remove('hidden');
+                overlay.classList.add('h-64');
+                overlay.classList.remove('h-auto');
+            } else {
+                msgs.classList.add('hidden');
+                input.classList.add('hidden');
+                overlay.classList.remove('h-64');
+                overlay.classList.add('h-auto');
             }
         }
 
